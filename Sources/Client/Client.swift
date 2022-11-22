@@ -5,8 +5,9 @@ import CommonLib
 public struct Client {
     
     public static func main() {
-        let argParser = ArgParser.shared
-
+        let argParser = ArgParser.senderArgParser
+        var initalDataId = 0
+        
         do {
             try argParser.parse()
         } catch(let error) {
@@ -14,7 +15,7 @@ public struct Client {
             exit(-1)
         }
         let port: UInt16 = argParser.portNumber ?? 2222
-        let socketManager = SocketManager(isForServer: false, serverIP: argParser.serverIp!, port: port)
+        let socketManager = SocketManager(isForServer: false, serverIP: argParser.receiverIp!, port: port)
         let fileManager = FileManager.shared
         do {
             try socketManager.createSocket()
@@ -30,31 +31,21 @@ public struct Client {
             exit(-1)
         }
         print("connection establihsed")
-//        argParser.targetFileNames.forEach { testText in
-//
-//            let fileName = testText as NSString
-//            var fileContent: NSString
-//            do{
-//                fileContent = try fileManager.readingFile(with: fileName as String) as NSString
-//            } catch {
-//                print("Reading file with error")
-//                exit(-1)
-//            }
-            let targetFile = NSString(format: "Hello World")
-            let textCStr = targetFile.cString(using: String.Encoding.ascii.rawValue)!
-            let textLength = Int(targetFile.lengthOfBytes(using: String.Encoding.ascii.rawValue))
-            let sendStatusCode = write(socketManager.socketFD!, textCStr, textLength)
-            guard sendStatusCode != -1 else {
-                print("failed to send")
-                exit(-1)
+        while true {
+            let readingLine = readLine()
+            if readingLine?.count == 0 {
+                break
             }
-
-            print("send: \(targetFile) successfully")
-            Thread.sleep(forTimeInterval: 0.25)
-//        }
-        let nullptr = UnsafeMutablePointer<CChar>.allocate(capacity: 1)
-        nullptr.pointee = 0
-        write(socketManager.socketFD!, nullptr, 1)
-//        close(socketManager.socketFD!)
+            let objectData = DataModel(seq: initalDataId, type: .SYN, data: readingLine)
+            let cStr = (objectData as JsonStringConvertible).convert()! as NSString
+            write(socketManager.socketFD!, cStr.cString(using: String.Encoding.ascii.rawValue), cStr.length)
+            initalDataId += 1
+            var receivedBuffer = Array<CChar>(repeating: 0, count: 1024)
+            let bytes = read(socketManager.socketFD!, &receivedBuffer, 1024)
+            let json = (DataModel.convert(from: String(utf8String: receivedBuffer)!) as? DataModel)!
+            print(String(cString: receivedBuffer))
+            print(json)
+        }
+        
     }
 }
