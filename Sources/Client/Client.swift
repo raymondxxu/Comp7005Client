@@ -7,7 +7,7 @@ public struct Client {
     private static func readUserInput() {
         
     }
-
+    
     public static func main() {
         let argParser = ArgParser.senderArgParser
         var initalDataId = 0
@@ -40,11 +40,21 @@ public struct Client {
         }
         print("connection establihsed")
         
-        let readingLine = readLine() ?? ""
-        let objectData = DataModel(seq: initalDataId, type: .SYN, data: readingLine)
-        sendedData.append(objectData)
-        var lastReceivedId = -1
-        var addMissingData = true
+        var readFromCommandLine = true
+        
+        if let fileName = argParser.targetFileNames.first {
+            readFromCommandLine = false
+            sendedData = try! fileManager.readingFile(with: fileName).split(separator: "\n").enumerated().map{ index, readingLine in
+                DataModel(seq: index, type: .SYN, data: String(readingLine))
+            }
+            
+        }
+        
+        if readFromCommandLine {
+            let readingLine = readLine() ?? ""
+            let objectData = DataModel(seq: initalDataId, type: .SYN, data: readingLine)
+            sendedData.append(objectData)
+        }
         while let current = sendedData.popLast() {
             sendingData.append(current)
             let cStr = (current as JsonStringConvertible).convert()! as NSString
@@ -64,21 +74,35 @@ public struct Client {
             if let json = (DataModel.convert(from: String(utf8String: receivedBuffer)!) as? DataModel) {
                 receivedData.append(json.id)
             }
-            if let readingLine = readLine() {
-                let objectData = DataModel(seq: initalDataId, type: .SYN, data: readingLine)
-                sendedData.append(objectData)
-            } else {
-                for sendingDatum in sendingData {
-                    if !receivedData.contains(sendingDatum.id) {
-                         sendedData.append(sendingDatum)
-                    } else {
-                        sendedData.removeAll{ $0.id == sendingDatum.id }
+            if readFromCommandLine {
+                if let readingLine = readLine() {
+                    let objectData = DataModel(seq: initalDataId, type: .SYN, data: readingLine)
+                    sendedData.append(objectData)
+                } else {
+                    for sendingDatum in sendingData {
+                        if !receivedData.contains(sendingDatum.id) {
+                            sendedData.append(sendingDatum)
+                        } else {
+                            sendedData.removeAll{ $0.id == sendingDatum.id }
+                        }
                     }
+                    
+                }
+            } else {
+                if sendedData.isEmpty {
+                    for sendingDatum in sendingData {
+                        if !receivedData.contains(sendingDatum.id) {
+                            sendedData.append(sendingDatum)
+                        } else {
+                            sendedData.removeAll{ $0.id == sendingDatum.id }
+                        }
+                    }
+                    
                 }
             }
+            
             print("number of packets sended: \(sendingCounts)")
             print("number of packets received: \(receingCount)")
-            print("Actual Drop \(abs(100 - Double(receingCount) / Double(sendingCounts) * 100))%")
         }
         
     }
