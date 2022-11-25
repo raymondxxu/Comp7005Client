@@ -63,6 +63,7 @@ public struct Client {
             let sendingBytes = write(socketManager.socketFD!, cStr.cString(using: String.Encoding.ascii.rawValue), cStr.length)
             print("sending \(sendingBytes)")
             initalDataId += 1
+            //wait 0.5 second receive ack
             Thread.sleep(forTimeInterval: 0.5)
             var receivedBuffer = Array<CChar>(repeating: 0, count: 1024)
             var timeout = timeval(tv_sec: 1, tv_usec: 0)
