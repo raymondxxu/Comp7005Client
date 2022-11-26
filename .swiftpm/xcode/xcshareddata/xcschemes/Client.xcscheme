@@ -81,7 +81,7 @@
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
-            argument = "&lt; hello.txt"
+            argument = "hello.txt"
             isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
